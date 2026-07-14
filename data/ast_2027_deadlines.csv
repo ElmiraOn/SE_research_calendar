@@ -1,0 +1,2 @@
+﻿conference,conference_slug,conference_url,track,label,start_date,end_date,date_text,timezone,confidence,needs_review,source_url,extracted_at_utc
+AST 2027,ast-2027,https://conf.researchr.org/home/ast-2027,AST 2027,Submission,2026-10-30,,Fri 30 Oct 2026,AoE (UTC-12:00),high,False,https://conf.researchr.org/home/ast-2027,2026-07-14T16:27:12.142154+00:00

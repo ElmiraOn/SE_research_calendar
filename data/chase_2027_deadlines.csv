@@ -1,0 +1,4 @@
+﻿conference,conference_slug,conference_url,track,label,start_date,end_date,date_text,timezone,confidence,needs_review,source_url,extracted_at_utc
+CHASE 2027,chase-2027,https://conf.researchr.org/home/chase-2027,Research Track,Abstract submission,2026-10-16,,Fri 16 Oct 2026,AoE (UTC-12:00),high,False,https://conf.researchr.org/track/chase-2027/chase-2027-papers,2026-07-14T16:26:58.747971+00:00
+CHASE 2027,chase-2027,https://conf.researchr.org/home/chase-2027,Research Track,Paper submission,2026-10-23,,Fri 23 Oct 2026,AoE (UTC-12:00),high,False,https://conf.researchr.org/track/chase-2027/chase-2027-papers,2026-07-14T16:26:58.747971+00:00
+CHASE 2027,chase-2027,https://conf.researchr.org/home/chase-2027,Research Track,Camera-ready submission,2027-01-29,,Fri 29 Jan 2027,AoE (UTC-12:00),high,False,https://conf.researchr.org/track/chase-2027/chase-2027-papers,2026-07-14T16:26:58.747971+00:00

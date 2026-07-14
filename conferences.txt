@@ -1,0 +1,10 @@
+# One Researchr conference home URL per line
+https://conf.researchr.org/home/fse-2027
+https://conf.researchr.org/home/icse-2027
+https://conf.researchr.org/home/chase-2027
+https://conf.researchr.org/home/msr-2027
+https://conf.researchr.org/home/cain-2027
+https://conf.researchr.org/home/RE-2026
+https://conf.researchr.org/home/ast-2027
+https://conf.researchr.org/home/saner-2027
+https://conf.researchr.org/home/eseiw-2026
