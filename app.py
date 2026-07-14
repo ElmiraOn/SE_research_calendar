@@ -338,7 +338,7 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
 # Page
 # ---------------------------------------------------------------------------
 
-st.title("SE Conference Calendar")
+st.title("SE Trackline")
 st.caption(
     "Conference deadlines in one calendar. Each conference keeps the same color "
     "across all of its tracks. Only contains deadlines extracted after July 12, 2026. " \
