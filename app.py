@@ -458,6 +458,16 @@ refresh_now = st.sidebar.button(
     help="Fetch every conference in conferences.txt and update its cached CSV.",
 )
 
+with st.sidebar:
+    st.divider()
+    st.subheader("About the author")
+    st.markdown(
+        "**Elmira Onagh**  \n"
+        "York University  \n"
+        "[onaghelmira@gmail.com](mailto:onaghelmira@gmail.com)  \n"
+        "[LinkedIn](https://www.linkedin.com/in/elmiraonagh/)"
+    )
+
 refresh_due = automatic_refresh_due(configured_urls)
 automatic_check_needed = not st.session_state.get("automatic_refresh_checked", False)
 should_refresh = refresh_now or (refresh_due and automatic_check_needed)
