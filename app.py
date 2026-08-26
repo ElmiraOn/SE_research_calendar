@@ -14,15 +14,23 @@ from __future__ import annotations
 import hashlib
 import html
 import importlib.util
+import re
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Optional
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
 from streamlit_calendar import calendar
+
+from deadline_cleaner import (
+    DEADLINE_TYPE_LABELS,
+    DEFAULT_DEADLINE_TYPES,
+    clean_deadline_frame,
+)
 
 
 st.set_page_config(
@@ -33,7 +41,9 @@ st.set_page_config(
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
+CONFERENCES_FILE = BASE_DIR / "conferences.txt"
 APP_TIMEZONE = ZoneInfo("America/Toronto")
+AUTO_REFRESH_AFTER = timedelta(hours=24)
 
 REQUIRED_COLUMNS = {
     "conference",
@@ -45,6 +55,7 @@ REQUIRED_COLUMNS = {
     "date_text",
     "timezone",
     "source_url",
+    "deadline_type",
 }
 
 # Distinct, readable colors on both light and dark Streamlit themes.
@@ -85,6 +96,7 @@ def discover_deadline_csvs() -> list[Path]:
 
 def normalize_deadlines(frame: pd.DataFrame) -> pd.DataFrame:
     """Validate and normalize data from one or more extractor CSVs."""
+    frame = clean_deadline_frame(frame)
     missing = REQUIRED_COLUMNS.difference(frame.columns)
     if missing:
         raise ValueError(
@@ -162,13 +174,93 @@ def load_local_data() -> tuple[list[pd.DataFrame], list[str]]:
     return frames, errors
 
 
+def read_configured_conference_urls() -> tuple[list[str], list[str]]:
+    """Read unique URLs from conferences.txt and report invalid entries."""
+    if not CONFERENCES_FILE.is_file():
+        return [], [f"Conference list was not found: {CONFERENCES_FILE.name}"]
+
+    urls: list[str] = []
+    errors: list[str] = []
+    seen: set[str] = set()
+    for line_number, raw_line in enumerate(
+        CONFERENCES_FILE.read_text(encoding="utf-8-sig").splitlines(), start=1
+    ):
+        value = re.split(r"\s+#", raw_line, maxsplit=1)[0].strip()
+        if not value or value.startswith("#"):
+            continue
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            errors.append(f"{CONFERENCES_FILE.name}:{line_number}: invalid URL: {value}")
+            continue
+        normalized = value.rstrip("/")
+        if normalized not in seen:
+            seen.add(normalized)
+            urls.append(normalized)
+    return urls, errors
+
+
+def cache_path_for_conference_url(url: str) -> Path:
+    """Return the extractor's stable CSV path for a Researchr home URL."""
+    slug = urlparse(url).path.rstrip("/").split("/")[-1]
+    safe_slug = re.sub(r"[^A-Za-z0-9]+", "_", slug).strip("_").lower()
+    return DATA_DIR / f"{safe_slug}_deadlines.csv"
+
+
+def automatic_refresh_due(urls: list[str], now: Optional[datetime] = None) -> bool:
+    """Refresh when a configured cache is absent or at least 24 hours old."""
+    if not urls:
+        return False
+    checked_at = now or datetime.now(APP_TIMEZONE)
+    for url in urls:
+        cache_path = cache_path_for_conference_url(url)
+        if not cache_path.is_file():
+            return True
+        modified_at = datetime.fromtimestamp(cache_path.stat().st_mtime, APP_TIMEZONE)
+        if checked_at - modified_at >= AUTO_REFRESH_AFTER:
+            return True
+    return False
+
+
+def refresh_configured_conferences(
+    urls: list[str],
+    extractor: Callable[..., dict[str, Any]],
+    flattener: Callable[[dict[str, Any]], list[dict[str, Any]]],
+) -> tuple[list[str], list[str]]:
+    """Extract configured conferences and atomically replace successful caches."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    refreshed: list[str] = []
+    errors: list[str] = []
+
+    for url in urls:
+        try:
+            # Cache every Important Date. The cleaner assigns stable types and
+            # the calendar controls which types are visible.
+            result = extractor(url, submission_only=False)
+            rows = flattener(result)
+            if not rows:
+                raise ValueError("the extractor returned no deadlines")
+
+            destination = cache_path_for_conference_url(url)
+            temporary = destination.with_suffix(destination.suffix + ".tmp")
+            clean_deadline_frame(pd.DataFrame(rows)).to_csv(
+                temporary, index=False, encoding="utf-8-sig"
+            )
+            temporary.replace(destination)
+            refreshed.append(str(result.get("conference", result.get("conference_slug", url))))
+        except Exception as exc:
+            # Never remove the previous cache: stale data is better than no data.
+            errors.append(f"{url}: {exc}")
+
+    return refreshed, errors
+
+
 def load_extractor() -> tuple[
     Optional[Callable[..., dict[str, Any]]],
     Optional[Callable[[dict[str, Any]], list[dict[str, Any]]]],
 ]:
-    """Load the extractor normally, with a fallback for duplicate filenames."""
+    """Load the current extractor, with a fallback for alternate filenames."""
     try:
-        from ignore.deadline_extractor import (  # type: ignore
+        from deadline_extractor_v2 import (
             extract_conference_deadlines,
             flatten_result,
         )
@@ -177,7 +269,11 @@ def load_extractor() -> tuple[
     except Exception:
         pass
 
-    for candidate in sorted(BASE_DIR.glob("deadline_extractor*.py")):
+    candidates = sorted(
+        BASE_DIR.glob("deadline_extractor*.py"),
+        key=lambda path: (path.name != "deadline_extractor_v2.py", path.name),
+    )
+    for candidate in candidates:
         if candidate.name == Path(__file__).name:
             continue
         try:
@@ -234,6 +330,9 @@ def make_calendar_events(
                 "conference": row.conference,
                 "track": row.track,
                 "deadlineLabel": row.label,
+                "deadlineType": DEADLINE_TYPE_LABELS.get(
+                    row.deadline_type, row.deadline_type
+                ),
                 "displayDate": row.date_text,
                 "timezone": row.timezone or "Not specified",
                 "sourceUrl": row.source_url,
@@ -327,6 +426,7 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
         st.subheader(props.get("deadlineLabel", "Deadline"))
         st.write(f"**Conference:** {props.get('conference', '—')}")
         st.write(f"**Track:** {props.get('track', '—')}")
+        st.write(f"**Type:** {props.get('deadlineType', '—')}")
         st.write(f"**Date:** {props.get('displayDate', clicked.get('start', '—'))}")
         st.write(f"**Timezone:** {props.get('timezone', '—')}")
         source_url = props.get("sourceUrl")
@@ -343,14 +443,42 @@ st.caption(
     "Conference deadlines in one calendar. Each conference keeps the same color "
     "across all of its tracks. Only contains deadlines extracted after July 12, 2026. " \
     "If the conference is not included please contact the author via GitHub or email to add it. " \
-    "The calendar is updated every first saturday of the month."
+    "Deadline data is refreshed automatically from the configured conference list."
 )
 
-local_frames, load_errors = load_local_data()
 if "extracted_deadline_frames" not in st.session_state:
     st.session_state.extracted_deadline_frames = {}
 
 extract_conference_deadlines, flatten_result = load_extractor()
+configured_urls, configuration_errors = read_configured_conference_urls()
+refresh_now = st.sidebar.button(
+    "Refresh deadline data now",
+    type="primary",
+    disabled=extract_conference_deadlines is None or flatten_result is None,
+    help="Fetch every conference in conferences.txt and update its cached CSV.",
+)
+
+refresh_due = automatic_refresh_due(configured_urls)
+automatic_check_needed = not st.session_state.get("automatic_refresh_checked", False)
+should_refresh = refresh_now or (refresh_due and automatic_check_needed)
+refresh_errors: list[str] = []
+
+if should_refresh and extract_conference_deadlines is not None and flatten_result is not None:
+    # A failed automatic attempt should not repeat on every widget interaction.
+    st.session_state.automatic_refresh_checked = True
+    with st.spinner(f"Refreshing deadlines for {len(configured_urls)} conferences…"):
+        refreshed, refresh_errors = refresh_configured_conferences(
+            configured_urls, extract_conference_deadlines, flatten_result
+        )
+    if refreshed:
+        st.success(
+            f"Updated {len(refreshed)} conference{'s' if len(refreshed) != 1 else ''}: "
+            + ", ".join(refreshed)
+        )
+    if refresh_now and not refreshed and not refresh_errors:
+        st.info("No conferences are configured in conferences.txt.")
+
+local_frames, load_errors = load_local_data()
 # with st.expander("Add or refresh a Researchr conference", expanded=False):
 #     conference_url = st.text_input(
 #         "Conference home URL",
@@ -389,9 +517,10 @@ all_frames = list(local_frames) + list(
     st.session_state.extracted_deadline_frames.values()
 )
 
-if load_errors:
+all_data_errors = configuration_errors + load_errors + refresh_errors
+if all_data_errors:
     with st.expander("Data-loading warnings"):
-        for message in load_errors:
+        for message in all_data_errors:
             st.warning(message)
 
 if not all_frames:
@@ -415,7 +544,7 @@ all_conferences = sorted(deadlines["conference"].unique().tolist(), key=str.case
 color_by_conference = assign_conference_colors(all_conferences)
 
 # Filters are deliberately placed immediately above the single calendar.
-conference_col, track_col= st.columns([1.0, 3])
+conference_col, type_col, track_col = st.columns([1.0, 1.2, 2.5])
 with conference_col:
     selected_conferences = st.multiselect(
         "Conferences",
@@ -426,6 +555,26 @@ with conference_col:
 
 conference_filtered = deadlines[
     deadlines["conference"].isin(selected_conferences)
+].copy()
+
+available_deadline_types = sorted(
+    conference_filtered["deadline_type"].unique().tolist(),
+    key=lambda value: DEADLINE_TYPE_LABELS.get(value, value).casefold(),
+)
+default_deadline_types = [
+    value for value in DEFAULT_DEADLINE_TYPES if value in available_deadline_types
+]
+with type_col:
+    selected_deadline_types = st.multiselect(
+        "Deadline types",
+        options=available_deadline_types,
+        default=default_deadline_types,
+        format_func=lambda value: DEADLINE_TYPE_LABELS.get(value, value),
+        placeholder="Choose deadline types",
+    )
+
+conference_filtered = conference_filtered[
+    conference_filtered["deadline_type"].isin(selected_deadline_types)
 ].copy()
 
 track_rows = (

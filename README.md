@@ -1,2 +1,20 @@
-# SE_research_calendar
-first commit
+# SE Research Calendar
+
+A Streamlit calendar for software-engineering conference submission deadlines.
+Conference home URLs are listed in `conferences.txt`. When the app starts, it
+automatically runs the Researchr extractor if a configured conference's cached
+CSV is missing or at least 24 hours old. Successful results are stored in
+`data/`; if a refresh fails, the previous cached CSV remains available.
+Each row is normalized by `deadline_cleaner.py` and includes a `deadline_type`
+column. The calendar initially shows only abstract and full-paper submissions;
+the **Deadline types** filter can reveal other categories when needed.
+
+## Run locally
+
+```bash
+python -m pip install -r requirements.txt
+streamlit run app.py
+```
+
+Use **Refresh deadline data now** in the sidebar to refresh immediately without
+waiting for the daily freshness check.
