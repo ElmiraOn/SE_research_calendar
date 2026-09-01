@@ -11,11 +11,12 @@ automatically.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import importlib.util
 import re
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time as clock_time, timedelta
 from pathlib import Path
 from typing import Any, Callable, Optional
 from urllib.parse import urlparse
@@ -25,6 +26,12 @@ import pandas as pd
 import streamlit as st
 from streamlit_calendar import calendar
 
+from calendar_links import (
+    build_calendar_links,
+    calendar_timezone_options,
+    infer_timezone_name,
+    timezone_display_name,
+)
 from deadline_cleaner import (
     DEADLINE_TYPE_LABELS,
     DEFAULT_DEADLINE_TYPES,
@@ -331,6 +338,7 @@ def make_calendar_events(
                     row.deadline_type, row.deadline_type
                 ),
                 "displayDate": row.date_text,
+                "startDate": start.isoformat(),
                 "timezone": row.timezone or "Not specified",
                 "sourceUrl": row.source_url,
                 "firstDeadline": row.first_deadline.date().isoformat(),
@@ -430,6 +438,99 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
         source_url = props.get("sourceUrl")
         if source_url:
             st.link_button("Open source page", source_url)
+
+        raw_start_date = str(props.get("startDate") or clicked.get("start") or "")[:10]
+        try:
+            default_date = date.fromisoformat(raw_start_date)
+        except ValueError:
+            default_date = date.today()
+
+        source_timezone = str(props.get("timezone", ""))
+        inferred_timezone = infer_timezone_name(source_timezone)
+        timezone_options = calendar_timezone_options()
+        timezone_index = (
+            timezone_options.index(inferred_timezone)
+            if inferred_timezone in timezone_options
+            else None
+        )
+        event_identity = "|".join(
+            (
+                str(props.get("conference", "")),
+                str(props.get("track", "")),
+                str(props.get("deadlineLabel", "")),
+                raw_start_date,
+            )
+        )
+        event_key = hashlib.sha1(event_identity.encode("utf-8")).hexdigest()[:12]
+
+        st.markdown("#### Add to calendar")
+        st.caption(
+            "Confirm the source deadline's date, time, and time zone before "
+            "opening your calendar. AoE deadlines default to 23:59 UTC−12:00."
+        )
+        with st.form(f"calendar_export_{event_key}"):
+            date_column, time_column, timezone_column = st.columns([1, 1, 2])
+            with date_column:
+                selected_date = st.date_input(
+                    "Date *", value=default_date, key=f"export_date_{event_key}"
+                )
+            with time_column:
+                selected_time = st.time_input(
+                    "Time *",
+                    value=clock_time(23, 59),
+                    step=60,
+                    key=f"export_time_{event_key}",
+                )
+            with timezone_column:
+                selected_timezone = st.selectbox(
+                    "Time zone *",
+                    options=timezone_options,
+                    index=timezone_index,
+                    format_func=timezone_display_name,
+                    placeholder="Select the source time zone",
+                    key=f"export_timezone_{event_key}",
+                )
+            submitted = st.form_submit_button("Prepare calendar links", type="primary")
+
+        if submitted:
+            if selected_timezone is None:
+                st.error("Select a time zone before adding this deadline.")
+            else:
+                event_title = (
+                    f"{props.get('conference', 'Conference')} — "
+                    f"{props.get('trackCategory', 'Track')}: "
+                    f"{props.get('deadlineLabel', 'Deadline')}"
+                )
+                description = (
+                    f"Original track: {props.get('track', 'Not specified')}\n"
+                    f"Deadline type: {props.get('deadlineType', 'Not specified')}\n"
+                    f"Published timezone: {source_timezone or 'Not specified'}"
+                )
+                try:
+                    links = build_calendar_links(
+                        title=event_title,
+                        event_date=selected_date,
+                        event_time=selected_time,
+                        timezone_name=selected_timezone,
+                        description=description,
+                        source_url=str(source_url or ""),
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    google_column, outlook_column = st.columns(2)
+                    with google_column:
+                        st.link_button(
+                            "Add to Google Calendar",
+                            links["google"],
+                            use_container_width=True,
+                        )
+                    with outlook_column:
+                        st.link_button(
+                            "Add to Outlook",
+                            links["outlook"],
+                            use_container_width=True,
+                        )
 
 
 # ---------------------------------------------------------------------------

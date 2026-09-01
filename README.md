@@ -21,3 +21,8 @@ streamlit run app.py
 
 Use **Refresh deadline data now** in the sidebar to refresh immediately without
 waiting for the daily freshness check.
+
+Click a deadline to inspect its source details and open the **Add to calendar**
+form. Confirm the date, time, and IANA time zone, then choose Google Calendar or
+Outlook. AoE deadlines are prefilled as 23:59 in UTC−12:00; missing source time
+zones must be selected explicitly.
