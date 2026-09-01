@@ -27,6 +27,9 @@ form. Confirm the date, time, and IANA time zone, then choose Google Calendar or
 Outlook. AoE deadlines are prefilled as 23:59 in UTC−12:00; missing source time
 zones must be selected explicitly.
 
+The calendar toolbar provides yearly, monthly, all-day weekly, and monthly-list
+views. The weekly view omits hourly slots because deadlines are all-day events.
+
 ## Submit an event
 
 Use **Add Your Event** in the app to choose between a structured single-deadline

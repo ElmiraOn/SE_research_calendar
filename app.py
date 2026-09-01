@@ -770,14 +770,18 @@ calendar_options = {
     "eventDisplay": "block",
     "displayEventTime": False,
     "fixedWeekCount": False,
+    "multiMonthMaxColumns": 3,
+    "multiMonthMinWidth": 260,
     "headerToolbar": {
         "left": "prev,next today",
         "center": "title",
-        "right": "dayGridMonth,listMonth",
+        "right": "multiMonthYear,dayGridMonth,dayGridWeek,listMonth",
     },
     "buttonText": {
         "today": "Today",
+        "year": "Year",
         "month": "Month",
+        "week": "Week",
         "list": "List",
     },
 }
