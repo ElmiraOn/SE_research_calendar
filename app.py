@@ -418,7 +418,9 @@ def render_conference_legend(
     )
 
 
-def render_clicked_event(calendar_state: dict[str, Any]) -> None:
+def render_clicked_event(
+    calendar_state: dict[str, Any], *, compact: bool = False
+) -> None:
     """Show details defensively because callback payloads vary by component version."""
     event_click = calendar_state.get("eventClick")
     if not isinstance(event_click, dict):
@@ -480,19 +482,16 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
             "opening your calendar. AoE deadlines default to 23:59 UTC−12:00."
         )
         with st.form(f"calendar_export_{event_key}"):
-            date_column, time_column, timezone_column = st.columns([1, 1, 2])
-            with date_column:
+            if compact:
                 selected_date = st.date_input(
                     "Date *", value=default_date, key=f"export_date_{event_key}"
                 )
-            with time_column:
                 selected_time = st.time_input(
                     "Time *",
                     value=default_time,
                     step=60,
                     key=f"export_time_{event_key}",
                 )
-            with timezone_column:
                 selected_timezone = st.selectbox(
                     "Time zone *",
                     options=timezone_options,
@@ -501,6 +500,28 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
                     placeholder="Select the source time zone",
                     key=f"export_timezone_{event_key}",
                 )
+            else:
+                date_column, time_column, timezone_column = st.columns([1, 1, 2])
+                with date_column:
+                    selected_date = st.date_input(
+                        "Date *", value=default_date, key=f"export_date_{event_key}"
+                    )
+                with time_column:
+                    selected_time = st.time_input(
+                        "Time *",
+                        value=default_time,
+                        step=60,
+                        key=f"export_time_{event_key}",
+                    )
+                with timezone_column:
+                    selected_timezone = st.selectbox(
+                        "Time zone *",
+                        options=timezone_options,
+                        index=timezone_index,
+                        format_func=timezone_display_name,
+                        placeholder="Select the source time zone",
+                        key=f"export_timezone_{event_key}",
+                    )
             submitted = st.form_submit_button("Prepare calendar links", type="primary")
 
         if submitted:
@@ -529,19 +550,31 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
                 except ValueError as exc:
                     st.error(str(exc))
                 else:
-                    google_column, outlook_column = st.columns(2)
-                    with google_column:
+                    if compact:
                         st.link_button(
                             "Add to Google Calendar",
                             links["google"],
                             use_container_width=True,
                         )
-                    with outlook_column:
                         st.link_button(
                             "Add to Outlook",
                             links["outlook"],
                             use_container_width=True,
                         )
+                    else:
+                        google_column, outlook_column = st.columns(2)
+                        with google_column:
+                            st.link_button(
+                                "Add to Google Calendar",
+                                links["google"],
+                                use_container_width=True,
+                            )
+                        with outlook_column:
+                            st.link_button(
+                                "Add to Outlook",
+                                links["outlook"],
+                                use_container_width=True,
+                            )
 
 
 def render_deadline_list(frame: pd.DataFrame, *, include_conference: bool) -> None:
@@ -967,18 +1000,83 @@ calendar_options = {
 #     """,
 #     key="conference_deadline_calendar",
 # )
-calendar_state = calendar(
-    events=events,
-    options=calendar_options,
-    custom_css=f"""
-        .fc {{
-            min-height: {calendar_min_height}px;
-        }}
-    """,
-    key=f"conference_deadline_calendar_{calendar_view}",
+if "selected_calendar_event" not in st.session_state:
+    st.session_state.selected_calendar_event = None
+if "selected_calendar_event_identity" not in st.session_state:
+    st.session_state.selected_calendar_event_identity = None
+if "calendar_detail_panel_open" not in st.session_state:
+    st.session_state.calendar_detail_panel_open = False
+if "calendar_component_version" not in st.session_state:
+    st.session_state.calendar_component_version = 0
+
+stored_event = st.session_state.selected_calendar_event
+detail_panel_open = (
+    st.session_state.calendar_detail_panel_open
+    and isinstance(stored_event, dict)
 )
-st.caption(
-    "Past events are faded. Click a deadline to inspect its details or open the "
-    "original Researchr track page."
-)
-render_clicked_event(calendar_state or {})
+
+if not detail_panel_open and isinstance(stored_event, dict):
+    if st.button("Show selected event details", key="show_calendar_event_details"):
+        st.session_state.calendar_detail_panel_open = True
+        st.rerun()
+
+if detail_panel_open:
+    calendar_column, details_column = st.columns([3.25, 1.2], gap="medium")
+else:
+    calendar_column = st.container()
+    details_column = None
+
+with calendar_column:
+    calendar_state = calendar(
+        events=events,
+        options=calendar_options,
+        custom_css=f"""
+            .fc {{
+                min-height: {calendar_min_height}px;
+            }}
+        """,
+        key=(
+            f"conference_deadline_calendar_{calendar_view}_"
+            f"{st.session_state.calendar_component_version}"
+        ),
+    )
+    st.caption(
+        "Past events are faded. Click a deadline to inspect its details or open "
+        "the original Researchr track page."
+    )
+
+selected_event = (calendar_state or {}).get("eventClick")
+if isinstance(selected_event, dict):
+    clicked = selected_event.get("event", selected_event)
+    if isinstance(clicked, dict):
+        props = clicked.get("extendedProps", {})
+        props = props if isinstance(props, dict) else {}
+        identity_parts = (
+            clicked.get("id", ""),
+            clicked.get("title", ""),
+            clicked.get("start", ""),
+            props.get("conference", ""),
+            props.get("track", ""),
+            props.get("deadlineLabel", ""),
+        )
+        clicked_identity = hashlib.sha1(
+            "|".join(str(part) for part in identity_parts).encode("utf-8")
+        ).hexdigest()
+        if clicked_identity != st.session_state.selected_calendar_event_identity:
+            st.session_state.selected_calendar_event = selected_event
+            st.session_state.selected_calendar_event_identity = clicked_identity
+            st.session_state.calendar_detail_panel_open = True
+            st.rerun()
+
+if detail_panel_open and details_column is not None:
+    with details_column:
+        if st.button(
+            "✕ Close details",
+            key="close_calendar_event_details",
+            use_container_width=True,
+        ):
+            st.session_state.calendar_detail_panel_open = False
+            st.session_state.selected_calendar_event_identity = None
+            st.session_state.calendar_component_version += 1
+            st.rerun()
+        render_clicked_event({"eventClick": stored_event}, compact=True)

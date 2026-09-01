@@ -48,6 +48,10 @@ calendar. Changing the layout remounts the component with a view-specific
 minimum height, preventing month and year content from being clipped by the
 iframe.
 
+Clicking a calendar event opens a compact details and Add to Calendar panel to
+the right of the calendar. The panel can be closed to restore the calendar's
+full width, then reopened with the Show selected event details button.
+
 ## Submit an event
 
 Use **Add Your Event** in the app to choose between a structured single-deadline
