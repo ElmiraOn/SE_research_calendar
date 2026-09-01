@@ -171,6 +171,15 @@ def conference_slug_from_url(url: str) -> str:
     )
 
 
+def conference_title_from_slug(slug: str) -> str:
+    """Build a stable fallback title such as ``ESEIW 2026`` from a URL slug."""
+    match = re.fullmatch(r"([A-Za-z][A-Za-z0-9-]*?)-(20\d{2})", slug)
+    if not match:
+        return slug
+    name = match.group(1).replace("-", " ").upper()
+    return f"{name} {match.group(2)}"
+
+
 def conference_home_url(url: str) -> str:
     parsed = urlparse(url)
     slug = conference_slug_from_url(url)
@@ -617,6 +626,8 @@ def extract_conference_deadlines(
     home_html = fetch_html(session, home_url, timeout)
     home_soup = soup_from_html(home_html)
     conference_title = extract_page_title(home_soup)
+    if conference_title.casefold().rstrip("!") in {"welcome", "home", "unknown conference"}:
+        conference_title = conference_title_from_slug(slug)
     tracks = discover_track_links(home_soup, home_url, slug)
 
     track_results: list[dict[str, Any]] = []

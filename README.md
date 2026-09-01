@@ -8,6 +8,9 @@ CSV is missing or at least 24 hours old. Successful results are stored in
 Each row is normalized by `deadline_cleaner.py` and includes a `deadline_type`
 column. The calendar initially shows only abstract and full-paper submissions;
 the **Deadline types** filter can reveal other categories when needed.
+Conference names are normalized from their stable URL slugs, and each source
+track is mapped to a cross-conference `track_category`. The original website
+wording is retained in `track_original` for auditing and future rule updates.
 
 ## Run locally
 

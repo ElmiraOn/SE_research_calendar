@@ -11,7 +11,6 @@ automatically.
 
 from __future__ import annotations
 
-import hashlib
 import html
 import importlib.util
 import re
@@ -29,6 +28,7 @@ from streamlit_calendar import calendar
 from deadline_cleaner import (
     DEADLINE_TYPE_LABELS,
     DEFAULT_DEADLINE_TYPES,
+    TRACK_CATEGORIES,
     clean_deadline_frame,
 )
 
@@ -56,6 +56,8 @@ REQUIRED_COLUMNS = {
     "timezone",
     "source_url",
     "deadline_type",
+    "track_category",
+    "track_original",
 }
 
 # Distinct, readable colors on both light and dark Streamlit themes.
@@ -108,6 +110,8 @@ def normalize_deadlines(frame: pd.DataFrame) -> pd.DataFrame:
         "conference",
         "conference_slug",
         "track",
+        "track_category",
+        "track_original",
         "label",
         "date_text",
         "timezone",
@@ -300,14 +304,6 @@ def assign_conference_colors(conferences: list[str]) -> dict[str, str]:
     }
 
 
-def track_identifier(conference_slug: str, track: str) -> str:
-    return f"{conference_slug}\u241f{track}"
-
-
-def track_display_name(conference: str, track: str) -> str:
-    return f"{conference} — {track}"
-
-
 def make_calendar_events(
     frame: pd.DataFrame,
     color_by_conference: dict[str, str],
@@ -320,7 +316,7 @@ def make_calendar_events(
         end = row.end_date.date() if pd.notna(row.end_date) else None
 
         event: dict[str, Any] = {
-            "title": f"{row.conference} · {row.track}: {row.label}",
+            "title": f"{row.conference} · {row.track_category}: {row.label}",
             "start": start.isoformat(),
             "allDay": True,
             "backgroundColor": color,
@@ -328,7 +324,8 @@ def make_calendar_events(
             "textColor": "#FFFFFF",
             "extendedProps": {
                 "conference": row.conference,
-                "track": row.track,
+                "track": row.track_original,
+                "trackCategory": row.track_category,
                 "deadlineLabel": row.label,
                 "deadlineType": DEADLINE_TYPE_LABELS.get(
                     row.deadline_type, row.deadline_type
@@ -425,7 +422,8 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
     with st.container(border=True):
         st.subheader(props.get("deadlineLabel", "Deadline"))
         st.write(f"**Conference:** {props.get('conference', '—')}")
-        st.write(f"**Track:** {props.get('track', '—')}")
+        st.write(f"**Category:** {props.get('trackCategory', '—')}")
+        st.write(f"**Original track:** {props.get('track', '—')}")
         st.write(f"**Type:** {props.get('deadlineType', '—')}")
         st.write(f"**Date:** {props.get('displayDate', clicked.get('start', '—'))}")
         st.write(f"**Timezone:** {props.get('timezone', '—')}")
@@ -587,28 +585,18 @@ conference_filtered = conference_filtered[
     conference_filtered["deadline_type"].isin(selected_deadline_types)
 ].copy()
 
-track_rows = (
-    conference_filtered[["conference", "conference_slug", "track"]]
-    .drop_duplicates()
-    .sort_values(["conference", "track"], key=lambda series: series.str.casefold())
-)
-track_options: dict[str, str] = {
-    track_display_name(row.conference, row.track): track_identifier(
-        row.conference_slug, row.track
-    )
-    for row in track_rows.itertuples(index=False)
-}
-track_widget_key = "track_filter_" + hashlib.sha1(
-    "|".join(selected_conferences).encode("utf-8")
-).hexdigest()[:10]
+available_track_categories = [
+    category
+    for category in TRACK_CATEGORIES
+    if category in set(conference_filtered["track_category"])
+]
 
 with track_col:
-    selected_track_names = st.multiselect(
-        "Tracks",
-        options=list(track_options.keys()),
-        default=list(track_options.keys()),
-        placeholder="Choose tracks",
-        key=track_widget_key,
+    selected_track_categories = st.multiselect(
+        "Track categories",
+        options=available_track_categories,
+        default=available_track_categories,
+        placeholder="Choose track categories",
     )
 
 # with status_col:
@@ -625,13 +613,8 @@ with track_col:
 #         ),
 #     )
 
-selected_track_ids = {track_options[name] for name in selected_track_names}
 filtered = conference_filtered[
-    conference_filtered.apply(
-        lambda row: track_identifier(row["conference_slug"], row["track"])
-        in selected_track_ids,
-        axis=1,
-    )
+    conference_filtered["track_category"].isin(selected_track_categories)
 ].copy()
 
 # if first_deadline_filter == "Not passed":
