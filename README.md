@@ -35,6 +35,19 @@ conference and a **Track** list for comparing one normalized track category
 across conferences. Both lists can be filtered by deadline type and retain links
 to the authoritative sources.
 
+View controls and filters are kept in the sidebar so the main page can use its
+full width. The calendar grows with its content instead of using a fixed-height
+nested scrolling area.
+
+The sidebar opens by default and also contains the project description and
+statistics for the current selection. Users can collapse it to give the active
+view additional space.
+
+Calendar layouts are selected in the main area directly above the embedded
+calendar. Changing the layout remounts the component with a view-specific
+minimum height, preventing month and year content from being clipped by the
+iframe.
+
 ## Submit an event
 
 Use **Add Your Event** in the app to choose between a structured single-deadline

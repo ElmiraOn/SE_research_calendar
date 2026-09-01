@@ -44,6 +44,7 @@ st.set_page_config(
     page_title="SE Field Calendar",
     page_icon="📅",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -586,8 +587,8 @@ def render_deadline_list(frame: pd.DataFrame, *, include_conference: bool) -> No
 # Page
 # ---------------------------------------------------------------------------
 
-st.title("SE Trackline")
-st.caption(
+st.sidebar.title("SE Trackline")
+st.sidebar.caption(
     "Conference deadlines in one calendar. Each conference keeps the same color "
     "across all of its tracks. Only contains deadlines extracted after July 12, 2026. " \
     "If the conference is not included please contact the author via GitHub or email to add it. " \
@@ -599,6 +600,11 @@ if "extracted_deadline_frames" not in st.session_state:
 
 extract_conference_deadlines, flatten_result = load_extractor()
 configured_urls, configuration_errors = read_configured_conference_urls()
+navigation_sidebar = st.sidebar.container()
+statistics_sidebar = st.sidebar.container()
+with st.sidebar:
+    st.divider()
+    st.subheader("Project actions")
 refresh_now = st.sidebar.button(
     "Refresh deadline data now",
     type="primary",
@@ -710,20 +716,20 @@ if deadlines.empty:
 all_conferences = sorted(deadlines["conference"].unique().tolist(), key=str.casefold)
 color_by_conference = assign_conference_colors(all_conferences)
 
-view_mode = st.radio(
-    "View deadlines",
-    options=("Calendar", "Conference", "Track"),
-    horizontal=True,
-    help=(
-        "Use Conference for one conference's deadlines, or Track to compare "
-        "one normalized track category across conferences."
-    ),
-)
+with navigation_sidebar:
+    st.subheader("Explore deadlines")
+    view_mode = st.radio(
+        "View",
+        options=("Calendar", "Conference", "Track"),
+        help=(
+            "Use Conference for one conference's deadlines, or Track to compare "
+            "one normalized track category across conferences."
+        ),
+    )
 
 if view_mode == "Conference":
     st.subheader("Conference deadlines")
-    conference_select_column, conference_type_column = st.columns([1, 2])
-    with conference_select_column:
+    with navigation_sidebar:
         selected_conference = st.selectbox(
             "Conference",
             options=all_conferences,
@@ -737,7 +743,7 @@ if view_mode == "Conference":
         conference_deadlines["deadline_type"].unique().tolist(),
         key=lambda value: DEADLINE_TYPE_LABELS.get(value, value).casefold(),
     )
-    with conference_type_column:
+    with navigation_sidebar:
         selected_conference_types = st.multiselect(
             "Deadline types",
             options=conference_deadline_types,
@@ -749,11 +755,10 @@ if view_mode == "Conference":
     conference_deadlines = conference_deadlines[
         conference_deadlines["deadline_type"].isin(selected_conference_types)
     ]
-    conference_metric_tracks, conference_metric_deadlines = st.columns(2)
-    conference_metric_tracks.metric(
-        "Tracks", conference_deadlines["track_original"].nunique()
-    )
-    conference_metric_deadlines.metric("Deadlines", len(conference_deadlines))
+    with statistics_sidebar:
+        st.subheader("Current results")
+        st.metric("Tracks", conference_deadlines["track_original"].nunique())
+        st.metric("Deadlines", len(conference_deadlines))
     if conference_deadlines.empty:
         st.info("No deadlines match the selected types.")
     else:
@@ -767,8 +772,7 @@ if view_mode == "Track":
         for category in TRACK_CATEGORIES
         if category in set(deadlines["track_category"])
     ]
-    track_select_column, track_type_column = st.columns([1, 2])
-    with track_select_column:
+    with navigation_sidebar:
         selected_category = st.selectbox(
             "Track category",
             options=available_categories,
@@ -782,7 +786,7 @@ if view_mode == "Track":
         track_deadlines["deadline_type"].unique().tolist(),
         key=lambda value: DEADLINE_TYPE_LABELS.get(value, value).casefold(),
     )
-    with track_type_column:
+    with navigation_sidebar:
         selected_track_types = st.multiselect(
             "Deadline types",
             options=track_deadline_types,
@@ -794,20 +798,27 @@ if view_mode == "Track":
     track_deadlines = track_deadlines[
         track_deadlines["deadline_type"].isin(selected_track_types)
     ]
-    track_metric_conferences, track_metric_deadlines = st.columns(2)
-    track_metric_conferences.metric(
-        "Conferences", track_deadlines["conference"].nunique()
-    )
-    track_metric_deadlines.metric("Deadlines", len(track_deadlines))
+    with statistics_sidebar:
+        st.subheader("Current results")
+        st.metric("Conferences", track_deadlines["conference"].nunique())
+        st.metric("Deadlines", len(track_deadlines))
     if track_deadlines.empty:
         st.info("No deadlines match the selected types.")
     else:
         render_deadline_list(track_deadlines, include_conference=True)
     st.stop()
 
-# Filters are deliberately placed immediately above the single calendar.
-conference_col, type_col, track_col = st.columns([1.0, 1.2, 2.5])
-with conference_col:
+st.subheader("Deadline calendar")
+calendar_layout = st.radio(
+    "Calendar layout",
+    options=("Month", "Week", "Year", "List"),
+    horizontal=True,
+    help="Changing the layout resizes the calendar to show the complete view.",
+)
+
+# Calendar filters live in the sidebar to leave the page width to the calendar.
+with navigation_sidebar:
+    st.subheader("Calendar filters")
     selected_conferences = st.multiselect(
         "Conferences",
         options=all_conferences,
@@ -826,7 +837,7 @@ available_deadline_types = sorted(
 default_deadline_types = [
     value for value in DEFAULT_DEADLINE_TYPES if value in available_deadline_types
 ]
-with type_col:
+with navigation_sidebar:
     selected_deadline_types = st.multiselect(
         "Deadline types",
         options=available_deadline_types,
@@ -845,7 +856,7 @@ available_track_categories = [
     if category in set(conference_filtered["track_category"])
 ]
 
-with track_col:
+with navigation_sidebar:
     selected_track_categories = st.multiselect(
         "Track categories",
         options=available_track_categories,
@@ -876,13 +887,14 @@ filtered = conference_filtered[
 # elif first_deadline_filter == "Passed":
 #     filtered = filtered[filtered["first_deadline_passed"]]
 
-metric_conferences, metric_tracks, metric_deadlines = st.columns(3)
-metric_conferences.metric("Conferences", filtered["conference"].nunique())
-metric_tracks.metric(
-    "Tracks",
-    filtered[["conference_slug", "track"]].drop_duplicates().shape[0],
-)
-metric_deadlines.metric("Deadlines", len(filtered))
+with statistics_sidebar:
+    st.subheader("Current results")
+    st.metric("Conferences", filtered["conference"].nunique())
+    st.metric(
+        "Tracks",
+        filtered[["conference_slug", "track"]].drop_duplicates().shape[0],
+    )
+    st.metric("Deadlines", len(filtered))
 
 visible_conferences = filtered["conference"].unique().tolist()
 # if visible_conferences:
@@ -893,23 +905,28 @@ if filtered.empty:
     st.stop()
 
 events = make_calendar_events(filtered, color_by_conference)
+calendar_view, calendar_min_height = {
+    "Month": ("dayGridMonth", 950),
+    "Week": ("dayGridWeek", 520),
+    "Year": ("multiMonthYear", 1900),
+    "List": ("listMonth", 900),
+}[calendar_layout]
 calendar_options = {
-    "initialView": "dayGridMonth",
+    "initialView": calendar_view,
     "initialDate": initial_calendar_date(filtered),
     "firstDay": 1,
-    "height": 1100,
-    # "contentHeight": 900,
+    "height": "auto",
     "navLinks": True,
     "dayMaxEvents": False,
     "eventDisplay": "block",
     "displayEventTime": False,
     "fixedWeekCount": False,
-    "multiMonthMaxColumns": 3,
-    "multiMonthMinWidth": 260,
+    "multiMonthMaxColumns": 4,
+    "multiMonthMinWidth": 200,
     "headerToolbar": {
         "left": "prev,next today",
         "center": "title",
-        "right": "multiMonthYear,dayGridMonth,dayGridWeek,listMonth",
+        "right": "",
     },
     "buttonText": {
         "today": "Today",
@@ -950,12 +967,16 @@ calendar_options = {
 #     """,
 #     key="conference_deadline_calendar",
 # )
-with st.container(height=750, border=False):
-    calendar_state = calendar(
-        events=events,
-        options=calendar_options,
-        key="conference_deadline_calendar",
-    )
+calendar_state = calendar(
+    events=events,
+    options=calendar_options,
+    custom_css=f"""
+        .fc {{
+            min-height: {calendar_min_height}px;
+        }}
+    """,
+    key=f"conference_deadline_calendar_{calendar_view}",
+)
 st.caption(
     "Past events are faded. Click a deadline to inspect its details or open the "
     "original Researchr track page."
