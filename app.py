@@ -543,6 +543,45 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
                         )
 
 
+def render_deadline_list(frame: pd.DataFrame, *, include_conference: bool) -> None:
+    """Render a consistent, source-linked deadline table."""
+    display = frame.copy()
+    display["deadline_type_display"] = display["deadline_type"].map(
+        lambda value: DEADLINE_TYPE_LABELS.get(value, value)
+    )
+    display["start_date_display"] = display["start_date"].dt.date
+    display["deadline_time"] = display["deadline_time"].replace("", "—")
+    display["timezone"] = display["timezone"].replace("", "Not specified")
+
+    column_map = {
+        "conference": "Conference",
+        "start_date_display": "Date",
+        "deadline_time": "Time",
+        "label": "Deadline",
+        "deadline_type_display": "Deadline type",
+        "track_category": "Track category",
+        "track_original": "Original track",
+        "timezone": "Timezone",
+        "source_url": "Source",
+    }
+    selected_columns = list(column_map)
+    if not include_conference:
+        selected_columns.remove("conference")
+    display = display[selected_columns].rename(columns=column_map)
+
+    st.dataframe(
+        display,
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Date": st.column_config.DateColumn("Date", format="YYYY-MM-DD"),
+            "Source": st.column_config.LinkColumn(
+                "Source", display_text="Open source"
+            ),
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
 # Page
 # ---------------------------------------------------------------------------
@@ -670,6 +709,101 @@ if deadlines.empty:
 
 all_conferences = sorted(deadlines["conference"].unique().tolist(), key=str.casefold)
 color_by_conference = assign_conference_colors(all_conferences)
+
+view_mode = st.radio(
+    "View deadlines",
+    options=("Calendar", "Conference", "Track"),
+    horizontal=True,
+    help=(
+        "Use Conference for one conference's deadlines, or Track to compare "
+        "one normalized track category across conferences."
+    ),
+)
+
+if view_mode == "Conference":
+    st.subheader("Conference deadlines")
+    conference_select_column, conference_type_column = st.columns([1, 2])
+    with conference_select_column:
+        selected_conference = st.selectbox(
+            "Conference",
+            options=all_conferences,
+            key="conference_list_selection",
+        )
+
+    conference_deadlines = deadlines[
+        deadlines["conference"] == selected_conference
+    ].copy()
+    conference_deadline_types = sorted(
+        conference_deadlines["deadline_type"].unique().tolist(),
+        key=lambda value: DEADLINE_TYPE_LABELS.get(value, value).casefold(),
+    )
+    with conference_type_column:
+        selected_conference_types = st.multiselect(
+            "Deadline types",
+            options=conference_deadline_types,
+            default=conference_deadline_types,
+            format_func=lambda value: DEADLINE_TYPE_LABELS.get(value, value),
+            key="conference_list_deadline_types",
+        )
+
+    conference_deadlines = conference_deadlines[
+        conference_deadlines["deadline_type"].isin(selected_conference_types)
+    ]
+    conference_metric_tracks, conference_metric_deadlines = st.columns(2)
+    conference_metric_tracks.metric(
+        "Tracks", conference_deadlines["track_original"].nunique()
+    )
+    conference_metric_deadlines.metric("Deadlines", len(conference_deadlines))
+    if conference_deadlines.empty:
+        st.info("No deadlines match the selected types.")
+    else:
+        render_deadline_list(conference_deadlines, include_conference=False)
+    st.stop()
+
+if view_mode == "Track":
+    st.subheader("Track deadlines across conferences")
+    available_categories = [
+        category
+        for category in TRACK_CATEGORIES
+        if category in set(deadlines["track_category"])
+    ]
+    track_select_column, track_type_column = st.columns([1, 2])
+    with track_select_column:
+        selected_category = st.selectbox(
+            "Track category",
+            options=available_categories,
+            key="track_list_selection",
+        )
+
+    track_deadlines = deadlines[
+        deadlines["track_category"] == selected_category
+    ].copy()
+    track_deadline_types = sorted(
+        track_deadlines["deadline_type"].unique().tolist(),
+        key=lambda value: DEADLINE_TYPE_LABELS.get(value, value).casefold(),
+    )
+    with track_type_column:
+        selected_track_types = st.multiselect(
+            "Deadline types",
+            options=track_deadline_types,
+            default=track_deadline_types,
+            format_func=lambda value: DEADLINE_TYPE_LABELS.get(value, value),
+            key="track_list_deadline_types",
+        )
+
+    track_deadlines = track_deadlines[
+        track_deadlines["deadline_type"].isin(selected_track_types)
+    ]
+    track_metric_conferences, track_metric_deadlines = st.columns(2)
+    track_metric_conferences.metric(
+        "Conferences", track_deadlines["conference"].nunique()
+    )
+    track_metric_deadlines.metric("Deadlines", len(track_deadlines))
+    if track_deadlines.empty:
+        st.info("No deadlines match the selected types.")
+    else:
+        render_deadline_list(track_deadlines, include_conference=True)
+    st.stop()
 
 # Filters are deliberately placed immediately above the single calendar.
 conference_col, type_col, track_col = st.columns([1.0, 1.2, 2.5])

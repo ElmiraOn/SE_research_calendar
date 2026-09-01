@@ -30,6 +30,11 @@ zones must be selected explicitly.
 The calendar toolbar provides yearly, monthly, all-day weekly, and monthly-list
 views. The weekly view omits hourly slots because deadlines are all-day events.
 
+The top-level view selector also provides a **Conference** list for one selected
+conference and a **Track** list for comparing one normalized track category
+across conferences. Both lists can be filtered by deadline type and retain links
+to the authoritative sources.
+
 ## Submit an event
 
 Use **Add Your Event** in the app to choose between a structured single-deadline
