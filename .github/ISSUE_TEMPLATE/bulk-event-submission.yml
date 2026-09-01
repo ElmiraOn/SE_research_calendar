@@ -10,7 +10,7 @@ body:
       value: |
         Use this form for multiple tracks or deadlines belonging to one conference.
 
-        1. [Download the empty CSV template](https://raw.githubusercontent.com/ElmiraOn/SE_research_calendar/main/templates/event_submission_template.csv).
+        1. [Download the empty CSV template](https://github.com/ElmiraOn/SE_research_calendar/blob/main/templates/event_submission_template.csv).
         2. Keep the header unchanged and add one deadline per row.
         3. Drag the completed CSV into the upload field below.
 
