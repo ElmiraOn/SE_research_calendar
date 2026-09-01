@@ -1,0 +1,64 @@
+name: Submit multiple deadlines by CSV
+description: Upload several deadlines or tracks for the same conference.
+title: "[Bulk event submission]: "
+labels:
+  - event submission
+  - needs review
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for multiple tracks or deadlines belonging to one conference.
+
+        1. [Download the empty CSV template](https://raw.githubusercontent.com/ElmiraOn/SE_research_calendar/main/templates/event_submission_template.csv).
+        2. Keep the header unchanged and add one deadline per row.
+        3. Drag the completed CSV into the upload field below.
+
+        Every submission is reviewed manually against its authoritative sources. Submission does not guarantee approval or publication. This issue and uploaded file will be public.
+
+  - type: input
+    id: conference_name
+    attributes:
+      label: Conference name
+      description: Include the conference acronym and year.
+      placeholder: "Example: ICSE 2027"
+    validations:
+      required: true
+
+  - type: input
+    id: conference_url
+    attributes:
+      label: Conference home page
+      description: Provide the official website, preferably its Researchr home URL.
+      placeholder: "https://conf.researchr.org/home/example-2027"
+    validations:
+      required: true
+
+  - type: textarea
+    id: completed_csv
+    attributes:
+      label: Completed CSV file
+      description: Drag and drop the completed event_submission_template.csv here. The attachment link must appear in this field before submission.
+      placeholder: Drag and drop the completed CSV file here.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Explain extensions, grace periods, or anything else the reviewer should know.
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Submission acknowledgement
+      options:
+        - label: I kept the CSV header unchanged and provided one deadline per row.
+          required: true
+        - label: I checked every row against its linked official source.
+          required: true
+        - label: I understand that this submission will be reviewed manually and is not guaranteed approval.
+          required: true
+        - label: I understand that this issue and uploaded CSV are public.
+          required: true

@@ -49,6 +49,9 @@ st.set_page_config(
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 CONFERENCES_FILE = BASE_DIR / "conferences.txt"
+EVENT_SUBMISSION_URL = (
+    "https://github.com/ElmiraOn/SE_research_calendar/issues/new/choose"
+)
 APP_TIMEZONE = ZoneInfo("America/Toronto")
 AUTO_REFRESH_AFTER = timedelta(hours=24)
 
@@ -339,6 +342,7 @@ def make_calendar_events(
                 ),
                 "displayDate": row.date_text,
                 "startDate": start.isoformat(),
+                "deadlineTime": row.deadline_time,
                 "timezone": row.timezone or "Not specified",
                 "sourceUrl": row.source_url,
                 "firstDeadline": row.first_deadline.date().isoformat(),
@@ -463,6 +467,12 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
         )
         event_key = hashlib.sha1(event_identity.encode("utf-8")).hexdigest()[:12]
 
+        published_time = str(props.get("deadlineTime", "")).strip()
+        try:
+            default_time = clock_time.fromisoformat(published_time)
+        except ValueError:
+            default_time = clock_time(23, 59)
+
         st.markdown("#### Add to calendar")
         st.caption(
             "Confirm the source deadline's date, time, and time zone before "
@@ -477,7 +487,7 @@ def render_clicked_event(calendar_state: dict[str, Any]) -> None:
             with time_column:
                 selected_time = st.time_input(
                     "Time *",
-                    value=clock_time(23, 59),
+                    value=default_time,
                     step=60,
                     key=f"export_time_{event_key}",
                 )
@@ -555,6 +565,15 @@ refresh_now = st.sidebar.button(
     type="primary",
     disabled=extract_conference_deadlines is None or flatten_result is None,
     help="Fetch every conference in conferences.txt and update its cached CSV.",
+)
+st.sidebar.link_button(
+    "Add Your Event",
+    EVENT_SUBMISSION_URL,
+    use_container_width=True,
+    help="Submit a conference deadline for manual review on GitHub.",
+)
+st.sidebar.caption(
+    "Submissions are reviewed manually. Submitting an event does not guarantee approval."
 )
 
 with st.sidebar:

@@ -1,0 +1,107 @@
+name: Submit one deadline
+description: Submit one software-engineering conference deadline using a structured form.
+title: "[Single event submission]: "
+labels:
+  - event submission
+  - needs review
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an event. Every submission is reviewed manually against an authoritative source. Submission does not guarantee approval or publication in the calendar. This issue and the information you enter will be public.
+
+  - type: input
+    id: conference_name
+    attributes:
+      label: Conference name
+      description: Include the conference acronym and year.
+      placeholder: "Example: ICSE 2027"
+    validations:
+      required: true
+
+  - type: input
+    id: conference_url
+    attributes:
+      label: Conference home page
+      description: Provide the official conference website, preferably its Researchr home URL.
+      placeholder: "https://conf.researchr.org/home/example-2027"
+    validations:
+      required: true
+
+  - type: input
+    id: track_name
+    attributes:
+      label: Track name
+      description: Use the track wording shown on the official website.
+      placeholder: "Example: Research Track"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deadline_type
+    attributes:
+      label: Deadline type
+      options:
+        - Abstract submission
+        - Full paper submission
+        - Other submission
+        - Artifact submission
+        - Notification
+        - Camera-ready
+        - Other date
+    validations:
+      required: true
+
+  - type: input
+    id: deadline_date
+    attributes:
+      label: Deadline date
+      description: Enter the date in YYYY-MM-DD format.
+      placeholder: "2027-01-31"
+    validations:
+      required: true
+
+  - type: input
+    id: deadline_time
+    attributes:
+      label: Deadline time
+      description: Enter a 24-hour time. Use 23:59 for an end-of-day deadline.
+      placeholder: "23:59"
+    validations:
+      required: true
+
+  - type: input
+    id: timezone
+    attributes:
+      label: Time zone
+      description: Use the published timezone, such as AoE (UTC-12:00) or an IANA name such as America/Toronto.
+      placeholder: "AoE (UTC-12:00)"
+    validations:
+      required: true
+
+  - type: input
+    id: source_url
+    attributes:
+      label: Authoritative deadline source
+      description: Link directly to the official page that publishes this deadline.
+      placeholder: "https://conf.researchr.org/track/..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Explain extensions, grace periods, or anything else the reviewer should know.
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Submission acknowledgement
+      options:
+        - label: I checked these details against the linked official source.
+          required: true
+        - label: I understand that this submission will be reviewed manually and is not guaranteed approval.
+          required: true
+        - label: I understand that this submission is a public GitHub issue.
+          required: true

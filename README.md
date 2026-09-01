@@ -26,3 +26,12 @@ Click a deadline to inspect its source details and open the **Add to calendar**
 form. Confirm the date, time, and IANA time zone, then choose Google Calendar or
 Outlook. AoE deadlines are prefilled as 23:59 in UTC−12:00; missing source time
 zones must be selected explicitly.
+
+## Submit an event
+
+Use **Add Your Event** in the app to choose between a structured single-deadline
+form and a bulk CSV upload for multiple tracks or deadlines from one conference.
+Every submission is reviewed manually and submission does not guarantee
+approval. Accepted Researchr conferences are added to `conferences.txt`;
+accepted one-off events are stored in the curated `data/manual_deadlines.csv`
+file. See `docs/REVIEWING_EVENTS.md` for the maintainer workflow.

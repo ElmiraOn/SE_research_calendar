@@ -177,7 +177,16 @@ def classify_track(track: str, source_url: str = "") -> str:
 def clean_deadline_frame(frame: pd.DataFrame) -> pd.DataFrame:
     """Return a copy with normalized text and a deterministic deadline_type."""
     result = frame.copy()
-    for column in ("conference", "conference_slug", "track", "label", "source_url"):
+    if "deadline_time" not in result.columns:
+        result["deadline_time"] = ""
+    for column in (
+        "conference",
+        "conference_slug",
+        "track",
+        "label",
+        "source_url",
+        "deadline_time",
+    ):
         if column in result.columns:
             result[column] = result[column].fillna("").astype(str).str.strip()
 
