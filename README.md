@@ -1,6 +1,9 @@
 # SE Research Calendar
 
 A Streamlit calendar for software-engineering conference submission deadlines.
+
+**Live app:** [se-trackline.streamlit.app](https://se-trackline.streamlit.app/)
+
 Conference home URLs are listed in `conferences.txt`. When the app starts, it
 automatically runs the Researchr extractor if a configured conference's cached
 CSV is missing or at least 24 hours old. Successful results are stored in
@@ -48,9 +51,10 @@ calendar. Changing the layout remounts the component with a view-specific
 minimum height, preventing month and year content from being clipped by the
 iframe.
 
-Clicking a calendar event opens a compact details and Add to Calendar panel to
-the right of the calendar. The panel can be closed to restore the calendar's
-full width, then reopened with the Show selected event details button.
+Clicking a calendar event opens a compact, sticky details and Add to Calendar
+panel to the right of the calendar. The panel stays visible while scrolling a
+tall view, can be closed to restore the calendar's full width, and can then be
+reopened with the Show selected event details button.
 
 ## Submit an event
 

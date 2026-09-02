@@ -1021,7 +1021,21 @@ if not detail_panel_open and isinstance(stored_event, dict):
         st.rerun()
 
 if detail_panel_open:
-    calendar_column, details_column = st.columns([3.25, 1.2], gap="medium")
+    st.markdown(
+        """
+        <style>
+            div[data-testid="stColumn"]:has(#calendar-event-detail-panel) {
+                position: sticky;
+                top: 4rem;
+                align-self: flex-start;
+                max-height: calc(100vh - 5rem);
+                overflow-y: auto;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    calendar_column, details_column = st.columns([2.7, 1.5], gap="medium")
 else:
     calendar_column = st.container()
     details_column = None
@@ -1070,6 +1084,10 @@ if isinstance(selected_event, dict):
 
 if detail_panel_open and details_column is not None:
     with details_column:
+        st.markdown(
+            '<span id="calendar-event-detail-panel"></span>',
+            unsafe_allow_html=True,
+        )
         if st.button(
             "✕ Close details",
             key="close_calendar_event_details",
