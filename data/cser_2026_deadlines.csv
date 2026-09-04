@@ -1,0 +1,2 @@
+﻿conference,conference_slug,conference_url,track,label,start_date,end_date,date_text,timezone,confidence,needs_review,source_url,extracted_at_utc,track_original,track_category,deadline_type
+CSER 2026,cser-2026,https://www.cser.ca/2026f/,CSER 2026,Submission,2026-10-23,,Fri 23 Oct 2026,AoE (UTC-12:00),high,FALSE,https://www.cser.ca/2026f/#call,,CSER 2026,Research,paper_submission
